@@ -1,18 +1,54 @@
-# Ignore Compiled Executables
+# --- Compiled Binaries & Libraries ---
 bin/
 *.o
+*.a
+*.so
+# Ignore core dumps (generated when programs crash)
+core
+core.*
 
-# Ignore Large Data Files
+# --- Data & Large Simulation Files ---
 data/
 *.csv
+*.dat
+*.bin
+*.txt
+
+# --- Visualization & Media ---
+# Keep scripts in viz/, but ignore generated outputs
 *.vtk
 *.vtu
-*.bin
+*.png
+*.jpg
+*.mp4
 
-# Ignore Slurm Logs
+# --- Scheduler & Runtime Logs ---
 logs/
 *.out
 *.err
+# Common pattern for Slurm job outputs in root
+slurm-*.out
 
-# Ignore OS files
+# --- Profiling & Performance Reports ---
+# Specifically found in your directory
+vtune_reports/
+# Intel VTune specific files
+*.aps
+# Gprof output
+gmon.out
+# NVIDIA Nsight/Profiler (common in NBody if using CUDA)
+*.nvvp
+*.nsys-rep
+
+# --- OS & Editor Configuration ---
+# Mac
 .DS_Store
+# Windows
+Thumbs.db
+# VS Code
+.vscode/
+# JetBrains/IntelliJ
+.idea/
+# Vim swap files
+*.swp
+*.swo
