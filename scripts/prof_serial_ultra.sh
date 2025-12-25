@@ -5,8 +5,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --time=04:00:00
-#SBATCH --output=logs/prof_s_ultra_%j.log
-#SBATCH --error=logs/errors/prof_s_ultra_%j.err
+#SBATCH --output=logs/prof_serial_ultra_%j.log
+#SBATCH --error=logs/errors/prof_serial_ultra_%j.err
 #SBATCH --exclusive
 
 # --- Configuration ---
