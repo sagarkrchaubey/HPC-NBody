@@ -22,7 +22,7 @@ RESULT_DIR="vtune_reports/serial_ultra_N${N}_ID${SLURM_JOB_ID}"
 # If you used a specific gcc for compiling, load it here just in case libraries are needed
 # module load gcc/8.2.0 
 module load oneapi/vtune/latest
-
+module load gcc/8.2.0
 echo "============================================"
 echo "Profiling Serial Ultra Implementation"
 echo "Particles (N) : $N"

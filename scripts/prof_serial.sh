@@ -20,7 +20,7 @@ RESULT_DIR="vtune_reports/serial_N${N}_ID${SLURM_JOB_ID}"
 
 # 3. Load Modules
 module load oneapi/vtune/latest
-
+module load gcc/8.2.0
 echo "============================================"
 echo "Profiling Standard Serial Implementation"
 echo "Particles (N) : $N"
