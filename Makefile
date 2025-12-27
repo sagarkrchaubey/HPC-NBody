@@ -77,7 +77,11 @@ mpi_ultra: $(SRC_DIR)/nbody_mpi_ultra.cpp
 hybrid: $(SRC_DIR)/nbody_hybrid.cpp
 	$(MPICXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_hybrid
 
-# 8. CUDA
+# 8. Hybrid Ultra
+hybrid_ultra: $(SRC_DIR)/nbody_hybrid_ultra.cpp
+	$(MPICXX) $(COMMON_FLAGS) $(ULTRA_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_hybrid_ultra
+
+# 9. CUDA
 cuda: $(SRC_DIR)/nbody_cuda.cu
 	$(NVCC) $(CUDA_FLAGS) -std=c++17 $< -o $(BIN_DIR)/nbody_cuda
 
