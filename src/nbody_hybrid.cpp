@@ -43,11 +43,11 @@ int main(int argc, char* argv[]) {
 
     int n_bodies = 100;
     int n_steps = 1000;
-    bool benchmark_mode = false;
+    std::string mode = "bench";
 
     if (argc >= 2) n_bodies = std::atoi(argv[1]);
     if (argc >= 3) n_steps = std::atoi(argv[2]);
-    if (argc >= 4 && std::string(argv[3]) == "true") benchmark_mode = true;
+    if (argc >= 4) mode = std::string(argv[3]);
 
     int threads_per_rank = omp_get_max_threads();
 
@@ -71,7 +71,7 @@ int main(int argc, char* argv[]) {
                              + "_R" + std::to_string(size) 
                              + "_T" + std::to_string(threads_per_rank) + ".csv";
         
-        if (!benchmark_mode) {
+        if (mode == "visual") {
             outfile.open(filename.c_str());
             outfile << "Step,BodyID,X,Y,Z,Mass" << std::endl;
         }
@@ -81,7 +81,8 @@ int main(int argc, char* argv[]) {
         std::cout << "Threads Per Rank:  " << threads_per_rank << std::endl;
         std::cout << "Total Cores Used:  " << size * threads_per_rank << std::endl;
         std::cout << "Bodies: " << n_bodies << std::endl;
-        if (!benchmark_mode) std::cout << "Output File: " << filename << std::endl;
+        std::cout << "Mode: " << mode << std::endl;
+        if (mode == "visual") std::cout << "Output File: " << filename << std::endl;
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -89,7 +90,7 @@ int main(int argc, char* argv[]) {
 
     for (int step = 0; step < n_steps; step++) {
 
-        if (rank == 0 && !benchmark_mode && step % 1 == 0) {
+        if (rank == 0 && mode == "visual" && step % 1 == 0) {
             for (int i = 0; i < n_bodies; i++) {
                 outfile << step << "," << i << "," 
                         << all_bodies[i].x << "," << all_bodies[i].y << "," << all_bodies[i].z 
@@ -151,7 +152,7 @@ int main(int argc, char* argv[]) {
     MPI_Reduce(&elapsed, &max_elapsed, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
     if (rank == 0) {
-        if (!benchmark_mode) outfile.close();
+        if (mode == "visual") outfile.close();
         
         double total_ops = (double)n_bodies * n_bodies * 20.0 * n_steps;
         double gflops = (total_ops / max_elapsed) / 1e9;
