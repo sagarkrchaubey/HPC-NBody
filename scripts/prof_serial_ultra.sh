@@ -18,9 +18,8 @@ MODE="bench"
 # 2. Define Output Directory with N and Job ID to prevent collisions
 RESULT_DIR="vtune_reports/serial_ultra_N${N}_ID${SLURM_JOB_ID}"
 
-# 3. Load Modules (Match what you used for compiling if needed)
-# If you used a specific gcc for compiling, load it here just in case libraries are needed
-# module load gcc/8.2.0 
+# 3. Load Modules 
+module purge
 module load oneapi/vtune/latest
 module load gcc/8.2.0
 echo "============================================"
