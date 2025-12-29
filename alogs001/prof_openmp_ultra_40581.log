@@ -1,0 +1,89 @@
+==========================================
+SLURM_CLUSTER_NAME = paramutkarsh
+SLURM_ARRAY_JOB_ID = 
+SLURM_ARRAY_TASK_ID = 
+SLURM_ARRAY_TASK_COUNT = 
+SLURM_ARRAY_TASK_MAX = 
+SLURM_ARRAY_TASK_MIN = 
+SLURM_JOB_ACCOUNT = cdac
+SLURM_JOB_ID = 40581
+SLURM_JOB_NAME = prof_omp_u
+SLURM_JOB_NODELIST = cn053
+SLURM_JOB_USER = chuk355
+SLURM_JOB_UID = 23411
+SLURM_JOB_PARTITION = cpu
+SLURM_TASK_PID = 48869
+SLURM_SUBMIT_DIR = /home/chuk355/HPC-NBody
+SLURM_CPUS_ON_NODE = 48
+SLURM_NTASKS = 1
+SLURM_TASK_PID = 48869
+==========================================
+============================================
+Profiling OpenMP Ultra
+Particles: 20000 | Threads: 48
+Output: vtune_reports/openmp_ultra_N20000_ID40581
+============================================
+--- Topology Check ---
+Threads: 48
+Thread 0 is running on Core 0 (NUMA Split Check)
+Thread 24 is running on Core 24 (NUMA Split Check)
+Time: 5.47689 s
+GFLOPs: 1460.68
+Elapsed Time: 8.182s
+    CPU Time: 262.939s
+        Effective Time: 258.449s
+            Idle: 0s
+            Poor: 3.532s
+            Ok: 33.341s
+            Ideal: 221.576s
+            Over: 0s
+        Spin Time: 4.490s
+            Imbalance or Serial Spinning: 4.490s
+            Lock Contention: 0s
+            Other: 0s
+        Overhead Time: 0s
+            Creation: 0s
+            Scheduling: 0s
+            Reduction: 0s
+            Atomics: 0s
+            Other: 0s
+    Total Thread Count: 48
+    Paused Time: 0s
+
+Top Hotspots
+Function                    Module              CPU Time
+--------------------------  ------------------  --------
+main._omp_fn.1              nbody_openmp_ultra  258.369s
+gomp_team_barrier_wait_end  libgomp.so.1          3.710s
+gomp_simple_barrier_wait    libgomp.so.1          0.390s
+gomp_team_barrier_wait      libgomp.so.1          0.220s
+gomp_simple_barrier_wait    libgomp.so.1          0.170s
+[Others]                    N/A                   0.080s
+Effective CPU Utilization: 66.4%
+ | The metric value is low, which may signal a poor logical CPU cores
+ | utilization caused by load imbalance, threading runtime overhead, contended
+ | synchronization, or thread/process underutilization. Explore sub-metrics to
+ | estimate the efficiency of MPI and OpenMP parallelism or run the Locks and
+ | Waits analysis to identify parallel bottlenecks for other parallel runtimes.
+ |
+    Average Effective CPU Utilization: 31.859 out of 48
+Collection and Platform Info
+    Application Command Line: ./bin/nbody_openmp_ultra "20000" "1000" "bench" 
+    Operating System: 3.10.0-1160.el7.x86_64 \S Kernel \r on an \m 
+    Computer Name: cn053
+    Result Size: 9.1 MB 
+    Collection start time: 11:49:31 26/12/2025 UTC
+    Collection stop time: 11:49:39 26/12/2025 UTC
+    Collector Type: Driverless Perf per-process counting,User-mode sampling and tracing
+    CPU
+        Name: Intel(R) Xeon(R) Processor code named Cascadelake
+        Frequency: 2.893 GHz 
+        Logical CPU Count: 48
+        Cache Allocation Technology
+            Level 2 capability: not detected
+            Level 3 capability: available
+
+If you want to skip descriptions of detected performance issues in the report,
+enter: vtune -report summary -report-knob show-issues=false -r <my_result_dir>.
+Alternatively, you may view the report in the csv format: vtune -report
+<report_name> -format=csv.

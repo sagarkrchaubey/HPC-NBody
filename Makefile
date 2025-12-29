@@ -10,7 +10,7 @@ CPU_ENV = . /home/apps/spack/share/spack/setup-env.sh && \
 GPU_ENV = module purge && \
           . /home/apps/spack/share/spack/setup-env.sh && \
           spack load gcc@11.2.0 && \
-          module load cuda/11.0
+          module load cuda/12.0
 
 CXX      = g++
 MPICXX   = mpicxx
@@ -36,7 +36,7 @@ directories:
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p $(REP_DIR)
 
-batch_cpu:
+cpu:
 	@echo "Building ALL CPU Codes..."
 	@$(CPU_ENV) && \
 	$(CXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(DEBUG_FLAGS) $(SRC_DIR)/nbody_serial.cpp -o $(BIN_DIR)/nbody_serial && \
@@ -48,7 +48,7 @@ batch_cpu:
 	$(MPICXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $(SRC_DIR)/nbody_hybrid.cpp -o $(BIN_DIR)/nbody_hybrid && \
 	$(MPICXX) $(COMMON_FLAGS) $(ULTRA_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $(SRC_DIR)/nbody_hybrid_ultra.cpp -o $(BIN_DIR)/nbody_hybrid_ultra
 
-batch_gpu:
+gpu:
 	@echo "Building ALL GPU Codes..."
 	@$(GPU_ENV) && \
 	$(NVCC) $(CUDA_FLAGS) -std=c++17 $(SRC_DIR)/nbody_cuda.cu -o $(BIN_DIR)/nbody_cuda && \
@@ -98,8 +98,8 @@ help:
 	@echo "Usage: make [target]"
 	@echo "Targets:"
 	@echo "  all           : Fast batch compile of EVERYTHING"
-	@echo "  batch_cpu     : Fast batch compile of CPU codes only"
-	@echo "  batch_gpu     : Fast batch compile of GPU codes only"
+	@echo "  cpu     : Fast batch compile of CPU codes only"
+	@echo "  gpu     : Fast batch compile of GPU codes only"
 	@echo "  serial        : Compile Serial"
 	@echo "  serial_ultra  : Compile Serial Ultra"
 	@echo "  openmp        : Compile OpenMP"

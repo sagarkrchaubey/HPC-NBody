@@ -1,0 +1,172 @@
+==========================================
+SLURM_CLUSTER_NAME = paramutkarsh
+SLURM_ARRAY_JOB_ID = 
+SLURM_ARRAY_TASK_ID = 
+SLURM_ARRAY_TASK_COUNT = 
+SLURM_ARRAY_TASK_MAX = 
+SLURM_ARRAY_TASK_MIN = 
+SLURM_JOB_ACCOUNT = cdac
+SLURM_JOB_ID = 40572
+SLURM_JOB_NAME = prof_omp
+SLURM_JOB_NODELIST = cn031
+SLURM_JOB_USER = chuk355
+SLURM_JOB_UID = 23411
+SLURM_JOB_PARTITION = cpu
+SLURM_TASK_PID = 45434
+SLURM_SUBMIT_DIR = /home/chuk355/HPC-NBody
+SLURM_CPUS_ON_NODE = 48
+SLURM_NTASKS = 1
+SLURM_TASK_PID = 45434
+==========================================
+============================================
+Profiling OpenMP (Standard)
+Particles: 1000 | Threads: 48
+Output: vtune_reports/openmp_N1000_ID40572
+============================================
+
+--- N-Body OpenMP Simulation ---
+Bodies: 1000 | Steps: 1000
+Threads: 48
+Output File: nbody_output_openmp_N1000_S1000_T48.csv
+
+========================================================
+                PERFORMANCE REPORT                      
+========================================================
+Threads Active:   48
+Unique Cores Used: 48
+
+--- Per-Thread Breakdown ---
+ThreadID  Compute Time(s)Interactions(Ops)   Est. GFLOPs    
+0         0.5509         20979000            0.7616         
+1         0.5468         20979000            0.7674         
+2         0.5504         20979000            0.7623         
+3         0.5502         20979000            0.7626         
+4         0.5502         20979000            0.7625         
+5         0.5481         20979000            0.7654         
+6         0.5503         20979000            0.7624         
+7         0.5496         20979000            0.7635         
+8         0.5503         20979000            0.7624         
+9         0.5504         20979000            0.7623         
+10        0.5503         20979000            0.7624         
+11        0.5502         20979000            0.7626         
+12        0.5506         20979000            0.7620         
+13        0.5502         20979000            0.7625         
+14        0.5506         20979000            0.7621         
+15        0.5501         20979000            0.7628         
+16        0.5501         20979000            0.7628         
+17        0.5505         20979000            0.7622         
+18        0.5503         20979000            0.7625         
+19        0.5506         20979000            0.7621         
+20        0.5501         20979000            0.7627         
+21        0.5505         20979000            0.7622         
+22        0.5472         20979000            0.7668         
+23        0.5503         20979000            0.7625         
+24        0.5506         20979000            0.7621         
+25        0.5506         20979000            0.7620         
+26        0.5505         20979000            0.7622         
+27        0.5503         20979000            0.7625         
+28        0.5504         20979000            0.7623         
+29        0.5504         20979000            0.7623         
+30        0.5506         20979000            0.7621         
+31        0.5505         20979000            0.7621         
+32        0.5505         20979000            0.7622         
+33        0.5504         20979000            0.7624         
+34        0.5506         20979000            0.7621         
+35        0.5502         20979000            0.7626         
+36        0.5504         20979000            0.7622         
+37        0.5505         20979000            0.7622         
+38        0.5502         20979000            0.7625         
+39        0.5479         20979000            0.7658         
+40        0.5504         19980000            0.7260         
+41        0.5500         19980000            0.7265         
+42        0.5506         19980000            0.7257         
+43        0.5504         19980000            0.7260         
+44        0.5502         19980000            0.7262         
+45        0.5506         19980000            0.7258         
+46        0.5504         19980000            0.7261         
+47        0.5504         19980000            0.7260         
+
+--- Overall Summary ---
+Wall Clock Time:   2.1407 s
+Combined GFLOPs:   9.3335 GFLOPs
+========================================================
+Elapsed Time: 6.768s
+    CPU Time: 98.799s
+        Effective Time: 45.950s
+            Idle: 0s
+            Poor: 45.950s
+            Ok: 0s
+            Ideal: 0s
+            Over: 0s
+        Spin Time: 52.829s
+         | A significant portion of CPU time is spent waiting. Use this metric
+         | to discover which synchronizations are spinning. Consider adjusting
+         | spin wait parameters, changing the lock implementation (for example,
+         | by backing off then descheduling), or adjusting the synchronization
+         | granularity.
+         |
+            Imbalance or Serial Spinning: 52.829s
+             | The threading runtime function related to time spent on imbalance
+             | or serial spinning consumed a significant amount of CPU time.
+             | This can be caused by a load imbalance, insufficient concurrency
+             | for all working threads, or busy waits of worker threads while
+             | serial code is executed. If there is an imbalance, apply dynamic
+             | work scheduling or reduce the size of work chunks or tasks. If
+             | there is insufficient concurrency, consider collapsing the outer
+             | and inner loops. If there is a wait for completion of serial
+             | code, explore options for parallelization with Intel Advisor,
+             | algorithm, or microarchitecture tuning of the application's
+             | serial code with VTune Profiler Basic Hotspots or
+             | Microarchitecture Exploration analysis respectively. For OpenMP*
+             | applications, use the Per-Barrier OpenMP Potential Gain metric
+             | set in the HPC Performance Characterization analysis to discover
+             | the reason for high imbalance or serial spin time.
+             |
+            Lock Contention: 0s
+            Other: 0s
+        Overhead Time: 0.020s
+            Creation: 0.020s
+            Scheduling: 0s
+            Reduction: 0s
+            Atomics: 0s
+            Other: 0s
+    Total Thread Count: 48
+    Paused Time: 0s
+
+Top Hotspots
+Function                    Module        CPU Time
+--------------------------  ------------  --------
+gomp_simple_barrier_wait    libgomp.so.1   49.700s
+update_physics._omp_fn.0    nbody_openmp   45.020s
+gomp_team_barrier_wait_end  libgomp.so.1    2.720s
+gomp_simple_barrier_wait    libgomp.so.1    0.379s
+std::ostream::operator<<    nbody_openmp    0.230s
+[Others]                    N/A             0.750s
+Effective CPU Utilization: 30.3%
+ | The metric value is low, which may signal a poor logical CPU cores
+ | utilization caused by load imbalance, threading runtime overhead, contended
+ | synchronization, or thread/process underutilization. Explore sub-metrics to
+ | estimate the efficiency of MPI and OpenMP parallelism or run the Locks and
+ | Waits analysis to identify parallel bottlenecks for other parallel runtimes.
+ |
+    Average Effective CPU Utilization: 14.533 out of 48
+Collection and Platform Info
+    Application Command Line: ./bin/nbody_openmp "1000" "1000" "bench" 
+    Operating System: 3.10.0-1160.el7.x86_64 \S Kernel \r on an \m 
+    Computer Name: cn031
+    Result Size: 6.0 MB 
+    Collection start time: 11:37:35 26/12/2025 UTC
+    Collection stop time: 11:37:42 26/12/2025 UTC
+    Collector Type: Driverless Perf per-process counting,User-mode sampling and tracing
+    CPU
+        Name: Intel(R) Xeon(R) Processor code named Cascadelake
+        Frequency: 2.893 GHz 
+        Logical CPU Count: 48
+        Cache Allocation Technology
+            Level 2 capability: not detected
+            Level 3 capability: available
+
+If you want to skip descriptions of detected performance issues in the report,
+enter: vtune -report summary -report-knob show-issues=false -r <my_result_dir>.
+Alternatively, you may view the report in the csv format: vtune -report
+<report_name> -format=csv.
