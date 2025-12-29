@@ -2,6 +2,7 @@ SRC_DIR = src
 BIN_DIR = bin
 REP_DIR = vtune_reports
 
+# --- Environment Setup ---
 CPU_ENV = . /home/apps/spack/share/spack/setup-env.sh && \
           spack load gcc@13.1.0%gcc@13.1.0 && \
           module load openmpi/4.1.1 && \
@@ -12,10 +13,12 @@ GPU_ENV = module purge && \
           spack load gcc@11.2.0 && \
           module load cuda/12.0
 
+# --- Tools ---
 CXX      = g++
 MPICXX   = mpicxx
 NVCC     = nvcc
 
+# --- Flags ---
 ARCH_FLAGS = -march=cascadelake -mtune=cascadelake
 COMMON_FLAGS = -O3 -std=c++17 -Wall
 DEBUG_FLAGS  = -g -fno-omit-frame-pointer
@@ -30,7 +33,11 @@ ULTRA_FLAGS  = $(ARCH_FLAGS) -ffast-math -funroll-loops -finline-functions \
 OMP_FLAGS  = -fopenmp
 CUDA_FLAGS = -O3 -arch=sm_70 -lineinfo
 
-all: directories batch_cpu batch_gpu
+# ==========================================
+# Targets
+# ==========================================
+
+all: directories cpu gpu
 
 directories:
 	@mkdir -p $(BIN_DIR)
@@ -38,7 +45,7 @@ directories:
 
 cpu:
 	@echo "Building ALL CPU Codes..."
-	@$(CPU_ENV) && \
+	@$(CPU_ENV) && set -x && \
 	$(CXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(DEBUG_FLAGS) $(SRC_DIR)/nbody_serial.cpp -o $(BIN_DIR)/nbody_serial && \
 	$(CXX) $(COMMON_FLAGS) $(ULTRA_FLAGS) $(DEBUG_FLAGS) $(SRC_DIR)/nbody_serial_ultra.cpp -o $(BIN_DIR)/nbody_serial_ultra && \
 	$(CXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $(SRC_DIR)/nbody_openmp.cpp -o $(BIN_DIR)/nbody_openmp && \
@@ -50,39 +57,40 @@ cpu:
 
 gpu:
 	@echo "Building ALL GPU Codes..."
-	@$(GPU_ENV) && \
+	@$(GPU_ENV) && set -x && \
 	$(NVCC) $(CUDA_FLAGS) -std=c++17 $(SRC_DIR)/nbody_cuda.cu -o $(BIN_DIR)/nbody_cuda && \
 	$(NVCC) $(CUDA_FLAGS) --use_fast_math -std=c++17 $(SRC_DIR)/nbody_cuda_ultra.cu -o $(BIN_DIR)/nbody_cuda_ultra
 
+
 serial: $(SRC_DIR)/nbody_serial.cpp
-	@$(CPU_ENV) && $(CXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_serial
+	$(CPU_ENV) && $(CXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_serial
 
 serial_ultra: $(SRC_DIR)/nbody_serial_ultra.cpp
-	@$(CPU_ENV) && $(CXX) $(COMMON_FLAGS) $(ULTRA_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_serial_ultra
+	$(CPU_ENV) && $(CXX) $(COMMON_FLAGS) $(ULTRA_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_serial_ultra
 
 openmp: $(SRC_DIR)/nbody_openmp.cpp
-	@$(CPU_ENV) && $(CXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_openmp
+	$(CPU_ENV) && $(CXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_openmp
 
 openmp_ultra: $(SRC_DIR)/nbody_openmp_ultra.cpp
-	@$(CPU_ENV) && $(CXX) $(COMMON_FLAGS) $(ULTRA_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_openmp_ultra
+	$(CPU_ENV) && $(CXX) $(COMMON_FLAGS) $(ULTRA_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_openmp_ultra
 
 mpi: $(SRC_DIR)/nbody_mpi.cpp
-	@$(CPU_ENV) && $(MPICXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_mpi
+	$(CPU_ENV) && $(MPICXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_mpi
 
 mpi_ultra: $(SRC_DIR)/nbody_mpi_ultra.cpp
-	@$(CPU_ENV) && $(MPICXX) $(COMMON_FLAGS) $(ULTRA_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_mpi_ultra
+	$(CPU_ENV) && $(MPICXX) $(COMMON_FLAGS) $(ULTRA_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_mpi_ultra
 
 hybrid: $(SRC_DIR)/nbody_hybrid.cpp
-	@$(CPU_ENV) && $(MPICXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_hybrid
+	$(CPU_ENV) && $(MPICXX) $(COMMON_FLAGS) $(ARCH_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_hybrid
 
 hybrid_ultra: $(SRC_DIR)/nbody_hybrid_ultra.cpp
-	@$(CPU_ENV) && $(MPICXX) $(COMMON_FLAGS) $(ULTRA_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_hybrid_ultra
+	$(CPU_ENV) && $(MPICXX) $(COMMON_FLAGS) $(ULTRA_FLAGS) $(OMP_FLAGS) $(DEBUG_FLAGS) $< -o $(BIN_DIR)/nbody_hybrid_ultra
 
 cuda: $(SRC_DIR)/nbody_cuda.cu
-	@$(GPU_ENV) && $(NVCC) $(CUDA_FLAGS) -std=c++17 $< -o $(BIN_DIR)/nbody_cuda
+	$(GPU_ENV) && $(NVCC) $(CUDA_FLAGS) -std=c++17 $< -o $(BIN_DIR)/nbody_cuda
 
 cuda_ultra: $(SRC_DIR)/nbody_cuda_ultra.cu
-	@$(GPU_ENV) && $(NVCC) $(CUDA_FLAGS) --use_fast_math -std=c++17 $< -o $(BIN_DIR)/nbody_cuda_ultra
+	$(GPU_ENV) && $(NVCC) $(CUDA_FLAGS) --use_fast_math -std=c++17 $< -o $(BIN_DIR)/nbody_cuda_ultra
 
 check_env:
 	@echo "--- Checking CPU Environment ---"
@@ -98,8 +106,8 @@ help:
 	@echo "Usage: make [target]"
 	@echo "Targets:"
 	@echo "  all           : Fast batch compile of EVERYTHING"
-	@echo "  cpu     : Fast batch compile of CPU codes only"
-	@echo "  gpu     : Fast batch compile of GPU codes only"
+	@echo "  cpu           : Fast batch compile of CPU codes only"
+	@echo "  gpu           : Fast batch compile of GPU codes only"
 	@echo "  serial        : Compile Serial"
 	@echo "  serial_ultra  : Compile Serial Ultra"
 	@echo "  openmp        : Compile OpenMP"
