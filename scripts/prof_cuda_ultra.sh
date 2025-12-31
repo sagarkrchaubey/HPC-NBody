@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
 #SBATCH --time=00:20:00
-#SBATCH --output=logs/prof_cuda_%j.log
-#SBATCH --error=logs/errors/prof_cuda_%j.err
+#SBATCH --output=logs/prof_cuda_ulra_%j.log
+#SBATCH --error=logs/errors/prof_cuda_ultra_%j.err
 
 # --- Configuration ---
 # Default to 20k particles for a good GPU workload
@@ -16,7 +16,7 @@ STEPS=1000
 MODE="bench"
 
 # Report output file (nsys-rep)
-REPORT_NAME="cuda_profile_N${N}_ID${SLURM_JOB_ID}"
+REPORT_NAME="cuda_ultra_profile_N${N}_ID${SLURM_JOB_ID}"
 REPORT_DIR="cuda_reports"
 
 # --- Modules ---
@@ -27,7 +27,7 @@ spack find gcc
 spack load gcc@11.2.0
 
 module spider cuda
-module load cuda/11.0
+module load cuda/12.0
 
 echo "Modules used:"
 gcc --version

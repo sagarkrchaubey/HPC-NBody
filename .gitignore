@@ -23,6 +23,7 @@ data/
 *.mp4
 
 # --- Scheduler & Runtime Logs ---
+alogs001/
 logs/
 *.out
 *.err
@@ -32,6 +33,7 @@ slurm-*.out
 # --- Profiling & Performance Reports ---
 # Specifically found in your directory
 vtune_reports/
+cuda_reports/
 # Intel VTune specific files
 *.aps
 # Gprof output
