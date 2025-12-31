@@ -1,4 +1,4 @@
-#run command
+#run command:
 #python3 render_nbody_pro.py --input "$CSV" --output "temp_frames" --limit $LIMIT --fps 30 --dpi 150 --video "$VIDEO_NAME" \
     # --keep-frames
 
@@ -13,7 +13,6 @@ import numpy as np
 import argparse
 import subprocess
 import shutil
-import glob
 
 # --- Argument Parsing ---
 def parse_arguments():
@@ -31,18 +30,18 @@ def render_frame(args):
     """
     Renders a single frame. 
     """
-    step, df_step, output_dir, axis_limit, dpi = args
-    
+    # MODIFIED: Accepting frame_index instead of raw step for filename
+    frame_index, step_val, df_step, output_dir, axis_limit, dpi = args
+
     # Setup Plot
-    # Fixed figsize ensures predictable dimensions (e.g., 10x100 = 1000px)
     fig = plt.figure(figsize=(10, 10), dpi=dpi)
     ax = fig.add_subplot(111, projection='3d')
-    
+
     # Dark background
     plt.style.use('dark_background')
     fig.patch.set_facecolor('black')
     ax.set_facecolor('black') 
-    
+
     # --- Advanced Visualization: Color by Velocity ---
     if {'vx', 'vy', 'vz'}.issubset(df_step.columns):
         v = np.sqrt(df_step['vx']**2 + df_step['vy']**2 + df_step['vz']**2)
@@ -60,28 +59,28 @@ def render_frame(args):
     ax.set_xlim(-axis_limit, axis_limit)
     ax.set_ylim(-axis_limit, axis_limit)
     ax.set_zlim(-axis_limit, axis_limit)
-    
-    ax.set_title(f"Step {int(step)}", color='white', fontsize=10)
-    
+
+    ax.set_title(f"Step {int(step_val)}", color='white', fontsize=10)
+
     # Hide Axes for clean look
     ax.axis('off')
-    
+
     # Save file
-    filename = os.path.join(output_dir, f"frame_{int(step):05d}.png")
-    
-    # FIX: Removed bbox_inches='tight' to ensure even dimensions
+    # MODIFIED: Using sequential index (00000, 00001) for Windows FFmpeg compatibility
+    filename = os.path.join(output_dir, f"frame_{frame_index:05d}.png")
+
     plt.savefig(filename, facecolor='black', pad_inches=0)
     plt.close(fig)
-    
+
     return filename
 
 def main():
     args = parse_arguments()
-    
+
     print(f"--- N-Body Renderer ---")
     print(f"Input:  {args.input}")
     print(f"Output: {args.output}/")
-    
+
     # 1. Read Data
     try:
         df = pd.read_csv(args.input)
@@ -103,9 +102,11 @@ def main():
     # 3. Group Tasks
     grouped = df.groupby('step')
     tasks = []
-    for step, group in grouped:
-        tasks.append((step, group, args.output, args.limit, args.dpi))
     
+    # MODIFIED: Enumerate to generate a strictly sequential index (0, 1, 2...)
+    for i, (step, group) in enumerate(grouped):
+        tasks.append((i, step, group, args.output, args.limit, args.dpi))
+
     total_frames = len(tasks)
     num_cores = multiprocessing.cpu_count()
     print(f"Rendering {total_frames} frames using {num_cores} cores...")
@@ -118,13 +119,12 @@ def main():
     print("\nRendering Images Complete.")
 
     # 5. Video Generation (FFmpeg)
-    # FIX: Added 'pad' filter to ensure dimensions are divisible by 2
+    # MODIFIED: Removed 'glob' and switched to sequence pattern %05d
     ffmpeg_cmd = [
         "ffmpeg", "-y",                 
         "-framerate", str(args.fps),    
-        "-pattern_type", "glob",        
-        "-i", f"{args.output}/*.png",   
-        "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", # SAFETY FIX
+        "-i", f"{args.output}/frame_%05d.png", # Windows Compatible Input
+        "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",
         "-c:v", "libx264",              
         "-pix_fmt", "yuv420p",          
         "-crf", "18",                   
@@ -137,7 +137,7 @@ def main():
         subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print(f"SUCCESS: Video saved as '{args.video}'")
     except FileNotFoundError:
-        print("Error: 'ffmpeg' not found. Please load the ffmpeg module.")
+        print("Error: 'ffmpeg' not found. Please ensure ffmpeg is installed and added to PATH.")
     except subprocess.CalledProcessError:
         print("Error: FFmpeg failed to generate video.")
         print("Try running this command manually to debug:")
