@@ -37,11 +37,12 @@ CUDA_FLAGS = -O3 -arch=sm_70 -lineinfo
 # Targets
 # ==========================================
 
-all: directories cpu gpu
+all: dir cpu gpu
 
-directories:
+dir:
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p $(REP_DIR)
+	@mkdir -p logs/errors
 
 cpu:
 	@echo "Building ALL CPU Codes..."
@@ -105,6 +106,7 @@ clean:
 help:
 	@echo "Usage: make [target]"
 	@echo "Targets:"
+	@echo "  dir           : Create all required directories"
 	@echo "  all           : Fast batch compile of EVERYTHING"
 	@echo "  cpu           : Fast batch compile of CPU codes only"
 	@echo "  gpu           : Fast batch compile of GPU codes only"
