@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <chrono>
 #include <string>
+#include <cstring>
 #include <cuda_runtime.h>
 
 const double DT = 0.001;
@@ -43,7 +44,6 @@ void initialize_bodies(std::vector<Body>& bodies) {
 
 __global__ void update_physics_kernel(Body* bodies, int N, double dt, double g, double softening) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-
     if (i < N) {
         double fx = 0.0;
         double fy = 0.0;
@@ -55,11 +55,9 @@ __global__ void update_physics_kernel(Body* bodies, int N, double dt, double g, 
 
         for (int j = 0; j < N; j++) {
             if (i == j) continue;
-
             double dx = bodies[j].x - body_ix;
             double dy = bodies[j].y - body_iy;
             double dz = bodies[j].z - body_iz;
-            
             double distSq = dx*dx + dy*dy + dz*dz + softening;
             double dist = sqrt(distSq);
             double f = (g * body_imass * bodies[j].mass) / (dist * dist * dist);
@@ -86,11 +84,13 @@ __global__ void update_physics_kernel(Body* bodies, int N, double dt, double g, 
 int main(int argc, char* argv[]) {
     int n_bodies = 100;
     int n_steps = 1000;
-    bool benchmark_mode = false;
+    bool benchmark_mode = true;
+    int save_interval = 1;
 
     if (argc >= 2) n_bodies = std::atoi(argv[1]);
     if (argc >= 3) n_steps = std::atoi(argv[2]);
-    if (argc >= 4 && std::string(argv[3]) == "true") benchmark_mode = true;
+    if (argc >= 4 && std::string(argv[3]) == "visual") benchmark_mode = false;
+    if (!benchmark_mode && argc >= 5) save_interval = std::atoi(argv[4]);
 
     std::vector<Body> h_bodies(n_bodies);
     initialize_bodies(h_bodies);
@@ -104,13 +104,11 @@ int main(int argc, char* argv[]) {
     int blocksPerGrid = (n_bodies + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
 
     std::ofstream outfile;
-    std::string filename = "nbody_output_cuda_N" + std::to_string(n_bodies) 
-                         + "_S" + std::to_string(n_steps) 
-                         + "_TPB" + std::to_string(THREADS_PER_BLOCK) + ".csv";
-
+    std::string filename = "nbody_output_cuda_N" + std::to_string(n_bodies) + ".csv";
+    
     if (!benchmark_mode) {
         outfile.open(filename.c_str());
-        outfile << "Step,BodyID,X,Y,Z,Mass" << std::endl;
+        outfile << "step,i,x,y,z,vx,vy,vz,m" << std::endl;
         std::cout << "--- CUDA Simulation Initialized ---" << std::endl;
         std::cout << "Bodies: " << n_bodies << " | Block Size: " << THREADS_PER_BLOCK << std::endl;
         std::cout << "Output File: " << filename << std::endl;
@@ -124,12 +122,13 @@ int main(int argc, char* argv[]) {
 
     for (int step = 0; step < n_steps; step++) {
         
-        if (!benchmark_mode && step % 1 == 0) {
+        if (!benchmark_mode && step % save_interval == 0) {
             gpuErrchk(cudaMemcpy(h_bodies.data(), d_bodies, size, cudaMemcpyDeviceToHost));
             for (int i = 0; i < n_bodies; i++) {
                 outfile << step << "," << i << "," 
-                        << h_bodies[i].x << "," << h_bodies[i].y << "," << h_bodies[i].z 
-                        << "," << h_bodies[i].mass << "\n";
+                        << h_bodies[i].x << "," << h_bodies[i].y << "," << h_bodies[i].z << ","
+                        << h_bodies[i].vx << "," << h_bodies[i].vy << "," << h_bodies[i].vz << ","
+                        << h_bodies[i].mass << "\n";
             }
         }
 
@@ -148,9 +147,8 @@ int main(int argc, char* argv[]) {
     double total_ops = (double)n_bodies * n_bodies * 20.0 * n_steps;
     double gflops = (total_ops / seconds) / 1e9;
 
-    std::cout << "\n--- CUDA Simulation Results ---" << std::endl;
-    std::cout << "Time:  " << seconds << " s" << std::endl;
-    std::cout << "Perf:  " << gflops << " GFLOPs" << std::endl;
+    std::cout << "Time:   " << seconds << " s" << std::endl;
+    std::cout << "GFLOPs: " << gflops << "\n";
 
     cudaFree(d_bodies);
     cudaEventDestroy(start);
