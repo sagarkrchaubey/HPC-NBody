@@ -1,153 +1,219 @@
-#run command:
-#python3 render_nbody_pro.py --input "$CSV" --output "temp_frames" --limit $LIMIT --fps 30 --dpi 150 --video "$VIDEO_NAME" \
-    # --keep-frames
-
+import matplotlib
+matplotlib.use('Agg') # Headless backend for Clusters/HPC
 
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 from mpl_toolkits.mplot3d import Axes3D
 import os
-import sys
-import multiprocessing
-import numpy as np
-import argparse
 import subprocess
-import shutil
+from multiprocessing import Pool, cpu_count
+from scipy.spatial import cKDTree 
 
-# --- Argument Parsing ---
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Parallel N-Body Renderer with Auto-Video")
-    parser.add_argument("-i", "--input", required=True, help="Input CSV file")
-    parser.add_argument("-o", "--output", default="render_output", help="Output directory for frames")
-    parser.add_argument("--fps", type=int, default=30, help="Video framerate")
-    parser.add_argument("--dpi", type=int, default=100, help="Image quality (DPI)")
-    parser.add_argument("--limit", type=float, default=2.0, help="Axis limits (-limit to +limit)")
-    parser.add_argument("--video", default="simulation.mp4", help="Output video filename")
-    parser.add_argument("--keep-frames", action="store_true", help="Keep PNG frames after video generation")
-    return parser.parse_args()
+# ---------- CONFIGURATION ----------
+CSV_FILE = "nbody_output_openmp_N2000.csv"
+OUT_DIR = "frames_final_v2"
+VIDEO_NAME = "galaxy_simulation_enhanced.mp4"
 
-def render_frame(args):
-    """
-    Renders a single frame. 
-    """
-    # MODIFIED: Accepting frame_index instead of raw step for filename
-    frame_index, step_val, df_step, output_dir, axis_limit, dpi = args
+STEP_STRIDE = 1 
+FPS = 30
 
-    # Setup Plot
-    fig = plt.figure(figsize=(10, 10), dpi=dpi)
-    ax = fig.add_subplot(111, projection='3d')
+# UPDATED: 'plasma' is much better for black backgrounds (starts purple/blue, not black)
+COLOR_MAP = 'plasma' 
 
-    # Dark background
-    plt.style.use('dark_background')
-    fig.patch.set_facecolor('black')
-    ax.set_facecolor('black') 
+os.makedirs(OUT_DIR, exist_ok=True)
 
-    # --- Advanced Visualization: Color by Velocity ---
-    if {'vx', 'vy', 'vz'}.issubset(df_step.columns):
-        v = np.sqrt(df_step['vx']**2 + df_step['vy']**2 + df_step['vz']**2)
-        colors = v
-        cmap = 'plasma' 
-    else:
-        colors = 'cyan'
-        cmap = None
-
-    # Plot Particles
-    sc = ax.scatter(df_step['x'], df_step['y'], df_step['z'], 
-                    s=5, c=colors, cmap=cmap, alpha=0.8, edgecolors='none')
-
-    # Fix Camera and Axis
-    ax.set_xlim(-axis_limit, axis_limit)
-    ax.set_ylim(-axis_limit, axis_limit)
-    ax.set_zlim(-axis_limit, axis_limit)
-
-    ax.set_title(f"Step {int(step_val)}", color='white', fontsize=10)
-
-    # Hide Axes for clean look
-    ax.axis('off')
-
-    # Save file
-    # MODIFIED: Using sequential index (00000, 00001) for Windows FFmpeg compatibility
-    filename = os.path.join(output_dir, f"frame_{frame_index:05d}.png")
-
-    plt.savefig(filename, facecolor='black', pad_inches=0)
-    plt.close(fig)
-
-    return filename
-
-def main():
-    args = parse_arguments()
-
-    print(f"--- N-Body Renderer ---")
-    print(f"Input:  {args.input}")
-    print(f"Output: {args.output}/")
-
-    # 1. Read Data
-    try:
-        df = pd.read_csv(args.input)
-    except FileNotFoundError:
-        print(f"Error: File {args.input} not found.")
-        return
-
-    # Check columns
-    if not {'x', 'y', 'z', 'step'}.issubset(df.columns):
-        print("Error: CSV missing required columns (step, x, y, z)")
-        return
-
-    # 2. Prepare Directory
-    if os.path.exists(args.output):
-        print(f"Warning: Cleaning existing directory '{args.output}'...")
-        shutil.rmtree(args.output)
-    os.makedirs(args.output)
-
-    # 3. Group Tasks
-    grouped = df.groupby('step')
-    tasks = []
+# ---------- HELPER: DETECT COLUMNS ----------
+def get_columns(df):
+    """Normalize column names to handle variations like vx vs v_x"""
+    cols = {c.lower(): c for c in df.columns}
+    mapping = {}
     
-    # MODIFIED: Enumerate to generate a strictly sequential index (0, 1, 2...)
-    for i, (step, group) in enumerate(grouped):
-        tasks.append((i, step, group, args.output, args.limit, args.dpi))
+    # Position
+    mapping['x'] = cols.get('x', cols.get('pos_x', None))
+    mapping['y'] = cols.get('y', cols.get('pos_y', None))
+    mapping['z'] = cols.get('z', cols.get('pos_z', None))
+    
+    # Velocity (for Speed Graph)
+    mapping['vx'] = cols.get('vx', cols.get('v_x', cols.get('vel_x', None)))
+    mapping['vy'] = cols.get('vy', cols.get('v_y', cols.get('vel_y', None)))
+    mapping['vz'] = cols.get('vz', cols.get('v_z', cols.get('vel_z', None)))
+    
+    return mapping
 
-    total_frames = len(tasks)
-    num_cores = multiprocessing.cpu_count()
-    print(f"Rendering {total_frames} frames using {num_cores} cores...")
+# ---------- FRAME RENDER FUNCTION ----------
+def render_frame(args):
+    step_val, df_step, frame_id, global_max_speed = args
+    
+    # 1. Data Extraction
+    col_map = get_columns(df_step)
+    
+    # Positions
+    pos = df_step[[col_map['x'], col_map['y'], col_map['z']]].values
+    xs, ys, zs = pos[:, 0], pos[:, 1], pos[:, 2]
+    
+    # Velocities (Calculate Speed Magnitude)
+    if col_map['vx']:
+        vels = df_step[[col_map['vx'], col_map['vy'], col_map['vz']]].values
+        speeds = np.linalg.norm(vels, axis=1)
+    else:
+        # Fallback if no velocity data exists
+        speeds = np.zeros(len(pos))
 
-    # 4. Parallel Render
-    with multiprocessing.Pool(processes=num_cores) as pool:
-        for i, _ in enumerate(pool.imap_unordered(render_frame, tasks), 1):
-            sys.stdout.write(f"\rProgress: {i}/{total_frames}")
-            sys.stdout.flush()
-    print("\nRendering Images Complete.")
+    # 2. Density Calculation (for glowing effect)
+    tree = cKDTree(pos)
+    dists, _ = tree.query(pos, k=min(8, len(pos))) 
+    density = 1.0 / (dists[:, -1] + 1e-5)
+    
+    # Center of Mass (for tracking)
+    com = np.mean(pos, axis=0)
+    
+    # Normalize density for color (log scale helps with contrast)
+    v_min, v_max = np.percentile(density, 5), np.percentile(density, 99.5)
 
-    # 5. Video Generation (FFmpeg)
-    # MODIFIED: Removed 'glob' and switched to sequence pattern %05d
-    ffmpeg_cmd = [
-        "ffmpeg", "-y",                 
-        "-framerate", str(args.fps),    
-        "-i", f"{args.output}/frame_%05d.png", # Windows Compatible Input
-        "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",
-        "-c:v", "libx264",              
-        "-pix_fmt", "yuv420p",          
-        "-crf", "18",                   
-        args.video                      
-    ]
+    # 3. Setup Figure
+    fig = plt.figure(figsize=(20, 10), facecolor='black') 
+    gs = gridspec.GridSpec(2, 3, width_ratios=[1.2, 1.2, 0.8])
+    
+    # --- VIEW 1: GLOBAL STRUCTURE (Rotating) ---
+    ax1 = fig.add_subplot(gs[:, 0], projection='3d')
+    ax1.set_facecolor('black')
+    
+    # Draw Particles (Increased size slightly for visibility)
+    # "Bloom" layer (large, faint)
+    ax1.scatter(xs, ys, zs, c=density, cmap=COLOR_MAP, vmin=v_min, vmax=v_max, 
+                s=25, alpha=0.08, edgecolors='none')
+    # Core layer (small, bright)
+    ax1.scatter(xs, ys, zs, c=density, cmap=COLOR_MAP, vmin=v_min, vmax=v_max, 
+                s=2.5, alpha=0.9, edgecolors='none')
+    
+    # Dynamic Limits
+    limit = np.percentile(np.abs(pos), 99) * 1.5
+    ax1.set_xlim(-limit, limit); ax1.set_ylim(-limit, limit); ax1.set_zlim(-limit, limit)
+    ax1.set_axis_off()
+    ax1.view_init(elev=20 * np.cos(frame_id * 0.01), azim=frame_id * 0.8)
+    ax1.text2D(0.05, 0.95, "GLOBAL VIEW", transform=ax1.transAxes, color='white', fontsize=12, fontweight='bold')
 
-    print(f"Generating Video: {args.video}...")
+    # --- VIEW 2: CORE ZOOM (With Magnification Bar) ---
+    ax2 = fig.add_subplot(gs[:, 1], projection='3d')
+    ax2.set_facecolor('black')
+    
+    ax2.scatter(xs, ys, zs, c=density, cmap=COLOR_MAP, vmin=v_min, vmax=v_max, 
+                s=50, alpha=0.1, edgecolors='none')
+    ax2.scatter(xs, ys, zs, c=density, cmap=COLOR_MAP, vmin=v_min, vmax=v_max, 
+                s=8, alpha=1.0, edgecolors='none')
+    
+    # Zoom Logic
+    z_limit = limit * 0.3 # 30% of global view
+    ax2.set_xlim(com[0]-z_limit, com[0]+z_limit)
+    ax2.set_ylim(com[1]-z_limit, com[1]+z_limit)
+    ax2.set_zlim(com[2]-z_limit, com[2]+z_limit)
+    ax2.set_axis_off()
+    ax2.view_init(elev=10, azim=-frame_id * 1.2)
+    
+    # ADDED: Magnification Indicator
+    mag_factor = limit / z_limit
+    ax2.text2D(0.05, 0.95, f"TRACKING CORE", transform=ax2.transAxes, color='white', fontsize=12, fontweight='bold')
+    # Draw a "Bar" using text (simplest way in 3D plots)
+    ax2.text2D(0.05, 0.90, f"MAGNIFICATION: {mag_factor:.1f}x", 
+               transform=ax2.transAxes, color='cyan', fontsize=14, fontweight='bold')
+    # Visual bar
+    ax2.text2D(0.05, 0.88, "▓▓▓▓▓▓▓▓", transform=ax2.transAxes, color='cyan', fontsize=10, alpha=0.7)
+
+    # --- VIEW 3: DENSITY HEATMAP (Top Right) ---
+    ax3 = fig.add_subplot(gs[0, 2])
+    ax3.set_facecolor('black')
+    # Changed cmap to 'inferno' for high contrast heatmap
+    hb = ax3.hexbin(xs, ys, gridsize=50, cmap='inferno', bins='log', mincnt=1)
+    ax3.set_aspect('equal')
+    ax3.set_axis_off()
+    ax3.set_title("XY PROJECTION DENSITY", color='white', fontsize=10)
+
+    # --- VIEW 4: VELOCITY DISTRIBUTION (Bottom Right - "Speed Up Graph") ---
+    ax4 = fig.add_subplot(gs[1, 2])
+    ax4.set_facecolor('black')
+    
+    if len(speeds) > 0:
+        # Plot histogram of particle speeds
+        n, bins, patches = ax4.hist(speeds, bins=50, color='orange', alpha=0.7, density=True)
+        
+        # Style
+        ax4.set_title("PARTICLE VELOCITY DISTRIBUTION", color='white', fontsize=10)
+        ax4.set_xlabel("Speed magnitude (|v|)", color='gray', fontsize=8)
+        ax4.tick_params(axis='both', colors='gray', labelsize=8)
+        for spine in ax4.spines.values(): spine.set_color('#444444')
+        ax4.grid(axis='y', color='#333333', linestyle='--')
+        
+        # Keep x-axis static so the graph doesn't jump around, giving a sense of acceleration
+        if global_max_speed > 0:
+            ax4.set_xlim(0, global_max_speed * 0.8) 
+    else:
+        ax4.text(0.5, 0.5, "NO VELOCITY DATA", color='red', ha='center')
+
+    # Global Title
+    plt.suptitle(f"N-BODY SIMULATION | STEP {step_val} | N=2000", color="white", fontsize=20, y=0.96)
+    plt.subplots_adjust(top=0.90, bottom=0.05, left=0.05, right=0.95)
+    
+    fname = f"{OUT_DIR}/frame_{frame_id:05d}.png"
+    plt.savefig(fname, facecolor='black', dpi=90) # slightly higher DPI
+    plt.close(fig)
+    return fname
+
+# ---------- VIDEO ENCODING ----------
+def make_video():
+    print(f"\n[FFmpeg] Encoding {VIDEO_NAME}...")
+    cmd = ['ffmpeg', '-y', '-framerate', str(FPS), '-i', f'{OUT_DIR}/frame_%05d.png',
+           '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '17', '-preset', 'medium', VIDEO_NAME]
     try:
-        # Run FFmpeg
-        subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print(f"SUCCESS: Video saved as '{args.video}'")
+        subprocess.run(cmd, check=True)
+        print(f"Video saved as {VIDEO_NAME}")
     except FileNotFoundError:
-        print("Error: 'ffmpeg' not found. Please ensure ffmpeg is installed and added to PATH.")
-    except subprocess.CalledProcessError:
-        print("Error: FFmpeg failed to generate video.")
-        print("Try running this command manually to debug:")
-        print(" ".join(ffmpeg_cmd))
+        print("Error: FFmpeg not found. Please install FFmpeg or check your path.")
 
-    # 6. Cleanup
-    if not args.keep_frames:
-        print("Cleaning up frames...")
-        shutil.rmtree(args.output)
-        print("Cleanup Done.")
-
+# ---------- MAIN EXECUTION ----------
 if __name__ == "__main__":
-    main()
+    if not os.path.exists(CSV_FILE):
+        print(f"Error: {CSV_FILE} not found!")
+        exit()
+
+    print(f"Reading data and starting render on {cpu_count()} cores...")
+    
+    # Load Data
+    df = pd.read_csv(CSV_FILE)
+    
+    # Normalize step column name
+    cols = {c.lower(): c for c in df.columns}
+    step_col = cols.get('step', None)
+    if not step_col:
+        print("Error: Could not find a 'step' column in CSV.")
+        exit()
+
+    unique_steps = sorted(df[step_col].unique())[::STEP_STRIDE]
+    
+    # Pre-calculate global max speed for consistent graph axis
+    col_map = get_columns(df)
+    global_max_speed = 0
+    if col_map['vx']:
+        # Estimate max speed from a sample to set graph limits
+        sample_step = unique_steps[len(unique_steps)//2]
+        sample_df = df[df[step_col] == sample_step]
+        vx = sample_df[col_map['vx']].values
+        vy = sample_df[col_map['vy']].values
+        vz = sample_df[col_map['vz']].values
+        global_max_speed = np.max(np.linalg.norm(np.column_stack((vx, vy, vz)), axis=1))
+        print(f"Calculated max particle speed approx: {global_max_speed:.2f}")
+
+    # Prepare Tasks
+    render_tasks = []
+    for i, s_val in enumerate(unique_steps):
+        step_data = df[df[step_col] == s_val]
+        render_tasks.append((s_val, step_data, i, global_max_speed))
+
+    # Multiprocessing Render
+    with Pool(cpu_count()) as p:
+        p.map(render_frame, render_tasks)
+    
+    print(f"Successfully rendered {len(render_tasks)} frames.")
+    make_video()
+    print("Done!")
