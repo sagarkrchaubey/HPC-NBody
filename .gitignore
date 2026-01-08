@@ -24,6 +24,8 @@ data/
 
 # --- Scheduler & Runtime Logs ---
 alogs001/
+vtune_reports.tar.gz
+*.tar.gz
 logs/
 *.out
 *.err
