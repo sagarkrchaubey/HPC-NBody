@@ -8,6 +8,17 @@
 #include <cstring> 
 #include <cstdlib>
 
+// --- Error Checking Macro ---
+#define cudaCheckError(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+   if (code != cudaSuccess) 
+   {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
+
 constexpr double DT   = 0.001;
 constexpr double G    = 1.0;
 constexpr double SOFT = 0.1;
@@ -126,17 +137,24 @@ int main(int argc, char** argv)
     }
 
     double *dx,*dy,*dz,*dvx,*dvy,*dvz,*dm;
-    cudaMalloc(&dx,bytes); cudaMalloc(&dy,bytes); cudaMalloc(&dz,bytes);
-    cudaMalloc(&dvx,bytes); cudaMalloc(&dvy,bytes); cudaMalloc(&dvz,bytes);
-    cudaMalloc(&dm,bytes);
 
-    cudaMemcpy(dx,x.data(),bytes,cudaMemcpyHostToDevice);
-    cudaMemcpy(dy,y.data(),bytes,cudaMemcpyHostToDevice);
-    cudaMemcpy(dz,z.data(),bytes,cudaMemcpyHostToDevice);
-    cudaMemcpy(dvx,vx.data(),bytes,cudaMemcpyHostToDevice);
-    cudaMemcpy(dvy,vy.data(),bytes,cudaMemcpyHostToDevice);
-    cudaMemcpy(dvz,vz.data(),bytes,cudaMemcpyHostToDevice);
-    cudaMemcpy(dm,m.data(),bytes,cudaMemcpyHostToDevice);
+    // --- Memory Allocation with Error Checking ---
+    cudaCheckError( cudaMalloc(&dx, bytes) );
+    cudaCheckError( cudaMalloc(&dy, bytes) );
+    cudaCheckError( cudaMalloc(&dz, bytes) );
+    cudaCheckError( cudaMalloc(&dvx, bytes) );
+    cudaCheckError( cudaMalloc(&dvy, bytes) );
+    cudaCheckError( cudaMalloc(&dvz, bytes) );
+    cudaCheckError( cudaMalloc(&dm, bytes) );
+
+    // --- Host to Device Copy with Error Checking ---
+    cudaCheckError( cudaMemcpy(dx, x.data(), bytes, cudaMemcpyHostToDevice) );
+    cudaCheckError( cudaMemcpy(dy, y.data(), bytes, cudaMemcpyHostToDevice) );
+    cudaCheckError( cudaMemcpy(dz, z.data(), bytes, cudaMemcpyHostToDevice) );
+    cudaCheckError( cudaMemcpy(dvx, vx.data(), bytes, cudaMemcpyHostToDevice) );
+    cudaCheckError( cudaMemcpy(dvy, vy.data(), bytes, cudaMemcpyHostToDevice) );
+    cudaCheckError( cudaMemcpy(dvz, vz.data(), bytes, cudaMemcpyHostToDevice) );
+    cudaCheckError( cudaMemcpy(dm, m.data(), bytes, cudaMemcpyHostToDevice) );
 
     dim3 block(BLOCK);
     dim3 grid((N + BLOCK - 1) / BLOCK);
@@ -148,30 +166,39 @@ int main(int argc, char** argv)
     }
 
     cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
+    cudaCheckError( cudaEventCreate(&start) );
+    cudaCheckError( cudaEventCreate(&stop) );
+    
+    cudaCheckError( cudaEventRecord(start) );
 
     for(int s=0;s<STEPS;s++){
         nbody_kernel<<<grid,block>>>(dx,dy,dz,dvx,dvy,dvz,dm,N);
+        
+        // Check for launch errors immediately
+        cudaCheckError( cudaPeekAtLastError() );
 
         if(mode == VISUAL && s % saveInterval == 0){
-            cudaMemcpy(x.data(), dx, bytes, cudaMemcpyDeviceToHost);
-            cudaMemcpy(y.data(), dy, bytes, cudaMemcpyDeviceToHost);
-            cudaMemcpy(z.data(), dz, bytes, cudaMemcpyDeviceToHost);
-            cudaMemcpy(vx.data(), dvx, bytes, cudaMemcpyDeviceToHost);
-            cudaMemcpy(vy.data(), dvy, bytes, cudaMemcpyDeviceToHost);
-            cudaMemcpy(vz.data(), dvz, bytes, cudaMemcpyDeviceToHost);
+            // Ensure kernel finished before copying back
+            cudaCheckError( cudaDeviceSynchronize() );
+
+            cudaCheckError( cudaMemcpy(x.data(), dx, bytes, cudaMemcpyDeviceToHost) );
+            cudaCheckError( cudaMemcpy(y.data(), dy, bytes, cudaMemcpyDeviceToHost) );
+            cudaCheckError( cudaMemcpy(z.data(), dz, bytes, cudaMemcpyDeviceToHost) );
+            cudaCheckError( cudaMemcpy(vx.data(), dvx, bytes, cudaMemcpyDeviceToHost) );
+            cudaCheckError( cudaMemcpy(vy.data(), dvy, bytes, cudaMemcpyDeviceToHost) );
+            cudaCheckError( cudaMemcpy(vz.data(), dvz, bytes, cudaMemcpyDeviceToHost) );
 
             for(int k=0;k<N;k++)
                 out<<s<<","<<k<<","<<x[k]<<","<<y[k]<<","<<z[k]<<","<<vx[k]<<","<<vy[k]<<","<<vz[k]<<","<<m[k]<<"\n";
         }
     }
 
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
+    cudaCheckError( cudaEventRecord(stop) );
+    cudaCheckError( cudaEventSynchronize(stop) );
 
-    float ms; cudaEventElapsedTime(&ms,start,stop);
+    float ms; 
+    cudaCheckError( cudaEventElapsedTime(&ms,start,stop) );
+    
     double sec = ms / 1000.0;
     double ops = (double)N * N * 20.0 * STEPS;
 
