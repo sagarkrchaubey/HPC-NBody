@@ -21,6 +21,8 @@ REPORT_DIR="cuda_reports"
 
 # --- Modules ---
 module purge
+module spider python
+module load python/3.7.11
 module load spack
 . /home/apps/spack/share/spack/setup-env.sh
 spack find gcc
