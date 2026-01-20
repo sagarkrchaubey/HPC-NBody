@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time=02:00:00
+#SBATCH --time=20:00:00
 #SBATCH --output=logs/prof_serial_%j.log
 #SBATCH --error=logs/errors/prof_serial_%j.err
 #SBATCH --exclusive

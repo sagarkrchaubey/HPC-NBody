@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
-#SBATCH --time=01:00:00
+#SBATCH --time=10:00:00
 #SBATCH --output=logs/prof_openmp_%j.log
 #SBATCH --error=logs/errors/prof_openmp_%j.err
 #SBATCH --exclusive

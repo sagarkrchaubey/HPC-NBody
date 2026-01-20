@@ -51,6 +51,9 @@ mkdir -p $REPORT_DIR
 # -o                : Output filename for the visual report
 # --force-overwrite : Overwrite if file exists
 
+export NSYS_LAUNCH_WAIT=1
+export CUDA_LAUNCH_BLOCKING=1
+
 nsys profile \
     --stats=true \
     --trace=cuda,osrt,nvtx \
