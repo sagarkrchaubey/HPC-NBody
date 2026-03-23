@@ -10,8 +10,8 @@ CPU_ENV = . /home/apps/spack/share/spack/setup-env.sh && \
 
 GPU_ENV = module purge && \
           . /home/apps/spack/share/spack/setup-env.sh && \
-          spack load gcc@11.2.0 && \
-          module load cuda/12.0
+          spack load gcc@8.5.0 && \
+          module load cuda/11.0
 
 # --- Tools ---
 CXX      = g++

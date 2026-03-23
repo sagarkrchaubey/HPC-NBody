@@ -26,10 +26,10 @@ module load python/3.7.11
 module load spack
 . /home/apps/spack/share/spack/setup-env.sh
 spack find gcc
-spack load gcc@11.2.0
+spack load gcc@8.5.0
 
 module spider cuda
-module load cuda/12.0
+module load cuda/11.0
 
 echo "Modules used:"
 gcc --version
