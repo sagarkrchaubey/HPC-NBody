@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=run_cuda
+#SBATCH --job-name=r_c
 #SBATCH --partition=gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -8,6 +8,7 @@
 #SBATCH --time=01:00:00
 #SBATCH --output=logs/run_cuda_%j.log
 #SBATCH --error=logs/errors/run_cuda_%j.err
+#SBATCH --exclusive
 
 N=${1:-20000}
 STEPS=${2:-1000}

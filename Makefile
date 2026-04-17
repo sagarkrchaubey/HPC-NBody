@@ -103,6 +103,9 @@ check_env:
 clean:
 	rm -f $(BIN_DIR)/* $(REP_DIR)/*.txt
 
+summary:
+	@./scripts/summary2.sh
+
 help:
 	@echo "Usage: make [target]"
 	@echo "Targets:"
@@ -121,4 +124,5 @@ help:
 	@echo "  cuda          : Compile CUDA"
 	@echo "  cuda_ultra    : Compile CUDA Ultra"
 	@echo "  check_env     : Verify compiler versions"
+	@echo "  summary       : Parse logs and display execution time & GFLOPs"
 	@echo "  clean         : Remove binaries"

@@ -1,13 +1,14 @@
 #!/bin/bash
-#SBATCH --job-name=run_hyb
+
+#SBATCH --exclusive
+#SBATCH --job-name=r_h
 #SBATCH --partition=cpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=2
 #SBATCH --cpus-per-task=24
-#SBATCH --time=04:00:00
+#SBATCH --time=10:00:00
 #SBATCH --output=logs/run_hybrid_%j.log
 #SBATCH --error=logs/errors/run_hybrid_%j.err
-#SBATCH --exclusive
 
 N=${1:-5000}
 STEPS=${2:-1000}
@@ -44,7 +45,7 @@ echo "==========================================================================
 
 if [ -f "$BIN" ]; then
     echo "Running: mpirun -np 2 $BIN $N $STEPS $MODE $SAVE"
-    time mpirun -np 2 --mca btl tcp,self,vader --map-by socket:PE=24 $BIN $N $STEPS $MODE $SAVE
+    time mpirun -np $SLURM_NTASKS --mca btl tcp,self,vader --map-by socket:PE=24 $BIN $N $STEPS $MODE $SAVE
 else
     echo "ERROR: Binary not found at $BIN"
 fi
