@@ -3,40 +3,45 @@
 
 LOG_DIR="logs"
 
-echo "========================================================================================================="
-printf "%-8s | %-16s | %-20s | %-10s | %-6s | %-10s | %-10s\n" "Job ID" "Paradigm" "Config" "N (Bodies)" "Steps" "Time (s)" "GFLOPs"
-echo "========================================================================================================="
+echo "======================================================================================================================="
+printf "%-8s | %-15s | %-5s | %-5s | %-10s | %-10s | %-10s | %-9s | %s\n" "Job ID" "Paradigm" "Nodes" "Cores" "N (Bodies)" "Elapsed" "Internal(s)" "GFLOPs" "NodeList"
+echo "======================================================================================================================="
 
-# Loop through all run logs (ignoring profiling logs)
 for log in ${LOG_DIR}/run_*.log; do
     if [ -f "$log" ]; then
         jobid=$(echo "$log" | grep -o '[0-9]\+')
         
-        # 1. Extract and Split the Description (e.g., "MPI Ultra (48 Ranks)")
+        # Query SLURM for Allocation details AND Elapsed Time (-X ensures we only get the master record, ignoring .batch/.0)
+        slurm_data=$(sacct -j $jobid --format=AllocNodes,AllocCPUs,Elapsed,NodeList -X -n -P 2>/dev/null | head -n 1)
+        nodes=$(echo "$slurm_data" | awk -F'|' '{print $1}')
+        cores=$(echo "$slurm_data" | awk -F'|' '{print $2}')
+        elapsed=$(echo "$slurm_data" | awk -F'|' '{print $3}')
+        nodelist=$(echo "$slurm_data" | awk -F'|' '{print $4}')
+
+        if [ -z "$nodes" ]; then nodes="1"; fi
+        if [ -z "$cores" ]; then cores="-"; fi
+        if [ -z "$elapsed" ]; then elapsed="-"; fi
+        if [ -z "$nodelist" ]; then nodelist="-"; fi
+
+        # Extract Paradigm Description
         desc_full=$(grep "Description :" "$log" | awk -F':' '{print $2}' | xargs)
         if [[ "$desc_full" == *"("*")"* ]]; then
-            # Split into Paradigm Name and the Config inside the parentheses
             paradigm=$(echo "$desc_full" | awk -F' \\(' '{print $1}' | xargs)
-            config=$(echo "$desc_full" | awk -F'\\(' '{print $2}' | tr -d ')' | xargs)
         else
             paradigm="$desc_full"
-            config="-"
         fi
         
-        # 2. Extract N and STEPS dynamically from the "Running:" echo
+        # Extract Parameters and Metrics
         run_line=$(grep "Running:" "$log" | tail -n 1)
-        # Finds the executable (contains /bin/nbody_) and grabs the next two arguments
         N=$(echo "$run_line" | awk '{for(i=1;i<=NF;i++) if($i ~ /bin\/nbody_/) print $(i+1)}')
-        STEPS=$(echo "$run_line" | awk '{for(i=1;i<=NF;i++) if($i ~ /bin\/nbody_/) print $(i+2)}')
         
-        # 3. Extract Performance Metrics
         time=$(grep "Time:" "$log" | tail -n 1 | awk '{print $2}')
         gflops=$(grep "GFLOPs:" "$log" | tail -n 1 | awk '{print $2}')
         
-        # 4. Print row if the job finished successfully
+        # Print the formatted row
         if [ -n "$time" ] && [ -n "$gflops" ]; then
-            printf "%-8s | %-16s | %-20s | %-10s | %-6s | %-10s | %-10s\n" "$jobid" "$paradigm" "$config" "$N" "$STEPS" "$time" "$gflops"
+            printf "%-8s | %-15s | %-5s | %-5s | %-10s | %-10s | %-10s | %-9s | %s\n" "$jobid" "$paradigm" "$nodes" "$cores" "$N" "$elapsed" "$time" "$gflops" "$nodelist"
         fi
     fi
 done
-echo "========================================================================================================="
+echo "======================================================================================================================="

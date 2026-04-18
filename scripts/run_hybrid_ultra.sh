@@ -32,7 +32,7 @@ echo "==========================================================================
 echo "                       HPC N-BODY SIMULATION REPORT                       "
 echo "=============================================================================="
 echo " Job ID      : $SLURM_JOB_ID"
-echo " Description : Hybrid Ultra (2 Ranks, 24 Threads/Rank)"
+echo " Description : Hybrid Ultra ($SLURM_NTASKS Ranks, 24 Threads/Rank)"
 echo " Start Time  : $(date)"
 echo " Node        : $(hostname)"
 echo "=============================================================================="

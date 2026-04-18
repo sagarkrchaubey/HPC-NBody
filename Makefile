@@ -104,7 +104,7 @@ clean:
 	rm -f $(BIN_DIR)/* $(REP_DIR)/*.txt
 
 summary:
-	@./scripts/summary2.sh
+	@./scripts/summary.sh
 
 help:
 	@echo "Usage: make [target]"
