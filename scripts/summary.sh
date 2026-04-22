@@ -7,8 +7,8 @@ echo "==========================================================================
 printf "%-8s | %-16s | %-26s | %-10s | %-10s | %-10s | %s\n" "Job ID" "Paradigm" "Hardware" "N (Bodies)" "Time (s)" "GFLOPs" "NodeList"
 echo "======================================================================================================="
 
-# Extract Job IDs for batch SLURM querying (Speed fix)
-JOB_IDS=$(ls ${LOG_DIR}/run_*.log 2>/dev/null | grep -o '[0-9]\+' | paste -sd "," -)
+# Extract Job IDs for batch SLURM querying (Fixed glob pattern and safer extraction)
+JOB_IDS=$(ls ${LOG_DIR}/*run_*.log 2>/dev/null | awk -F'/' '{print $NF}' | grep -o '^[0-9]\+' | paste -sd "," -)
 
 if [ -n "$JOB_IDS" ]; then
     sacct -j "$JOB_IDS" --format=JobID,AllocNodes,NodeList -X -n -P > /tmp/slurm_cache.txt 2>/dev/null
@@ -16,9 +16,11 @@ else
     touch /tmp/slurm_cache.txt
 fi
 
-for log in ${LOG_DIR}/run_*.log; do
+# Fixed glob pattern to match the new file names
+for log in ${LOG_DIR}/*run_*.log; do
     if [ -f "$log" ]; then
-        jobid=$(echo "$log" | grep -o '[0-9]\+')
+        # Safely extract job ID from filename (e.g., 60010_run_mpi.log -> 60010)
+        jobid=$(basename "$log" | awk -F'_' '{print $1}')
 
         # Read hardware layout from cache
         slurm_data=$(grep "^${jobid}|" /tmp/slurm_cache.txt | head -n 1)
@@ -30,7 +32,7 @@ for log in ${LOG_DIR}/run_*.log; do
 
         # Extract Paradigm string (Safe parsing fix)
         desc_full=$(grep "Description :" "$log" | awk -F':' '{print $2}' | xargs)
-        
+
         if [[ "$desc_full" == *"("*")"* ]]; then
             paradigm=$(echo "$desc_full" | awk -F'[(]' '{print $1}' | xargs)
             config=$(echo "$desc_full" | awk -F'[(]' '{print $2}' | awk -F'[)]' '{print $1}' | xargs)
