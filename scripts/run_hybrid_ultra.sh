@@ -7,8 +7,8 @@
 #SBATCH --ntasks=2
 #SBATCH --cpus-per-task=24
 #SBATCH --time=10:00:00
-#SBATCH --output=logs/run_hybrid_ultra_%j.log
-#SBATCH --error=logs/errors/run_hybrid_ultra_%j.err
+#SBATCH --output=logs/%j_run_hybrid_ultra.log
+#SBATCH --error=logs/errors/%j_run_hybrid_ultra.err
 
 N=${1:-5000}
 STEPS=${2:-1000}

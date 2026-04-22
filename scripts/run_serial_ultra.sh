@@ -5,8 +5,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --time=10:00:00
-#SBATCH --output=logs/run_serial_ultra_%j.log
-#SBATCH --error=logs/errors/run_serial_ultra_%j.err
+#SBATCH --output=logs/%j_run_serial_ultra.log
+#SBATCH --error=logs/errors/%j_run_serial_ultra.err
 #SBATCH --exclusive
 
 N=${1:-5000}
