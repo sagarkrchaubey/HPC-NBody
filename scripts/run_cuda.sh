@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
 #SBATCH --time=01:00:00
-#SBATCH --output=logs/run_cuda_%j.log
-#SBATCH --error=logs/errors/run_cuda_%j.err
+#SBATCH --output=logs/%j_run_cuda.log
+#SBATCH --error=logs/errors/%j_run_cuda.err
 #SBATCH --exclusive
 
 N=${1:-20000}

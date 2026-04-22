@@ -5,8 +5,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
 #SBATCH --time=04:00:00
-#SBATCH --output=logs/run_openmp_%j.log
-#SBATCH --error=logs/errors/run_openmp_%j.err
+#SBATCH --output=logs/%j_run_openmp.log
+#SBATCH --error=logs/errors/%j_run_openmp.err
 #SBATCH --exclusive
 
 N=${1:-5000}
