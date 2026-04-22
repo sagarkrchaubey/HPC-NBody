@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=run_omp
+#SBATCH --job-name=r_o
 #SBATCH --partition=cpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -21,7 +21,7 @@ module load spack
 spack find gcc
 spack load gcc@13.1.0%gcc@13.1.0
 
-export OMP_NUM_THREADS=48
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export OMP_PROC_BIND=close
 export OMP_PLACES=cores
 
@@ -29,7 +29,7 @@ echo "==========================================================================
 echo "                       HPC N-BODY SIMULATION REPORT                       "
 echo "=============================================================================="
 echo " Job ID      : $SLURM_JOB_ID"
-echo " Description : OpenMP Standard (48 Threads)"
+echo " Description : OpenMP Standard (${SLURM_CPUS_PER_TASK} Threads)"
 echo " Start Time  : $(date)"
 echo " Node        : $(hostname)"
 echo "=============================================================================="
