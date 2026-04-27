@@ -8,7 +8,6 @@
 #SBATCH --time=01:00:00
 #SBATCH --output=logs/%j_run_cuda_ultra.log
 #SBATCH --error=logs/errors/%j_run_cuda_ultra.err
-#SBATCH --exclusive
 
 N=${1:-20000}
 STEPS=${2:-1000}

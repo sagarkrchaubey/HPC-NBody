@@ -58,7 +58,7 @@ for log in ${LOG_DIR}/*run_*.log; do
             printf "%-8s | %-16s | %-26s | %-10s | %-10s | %-10s | %s\n" "$jobid" "$paradigm" "$hardware" "$N" "$time" "$gflops" "$nodelist"
         fi
     fi
-done | sort -k1,1n
+done | sort -V
 
 echo "======================================================================================================="
 rm -f /tmp/slurm_cache.txt

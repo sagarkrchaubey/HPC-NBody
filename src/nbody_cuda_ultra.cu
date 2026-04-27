@@ -23,7 +23,7 @@ constexpr double DT   = 0.001;
 constexpr double G    = 1.0;
 constexpr double SOFT = 0.1;
 constexpr int SEED    = 1234;
-constexpr int BLOCK   = 128;
+constexpr int BLOCK   = 256;
 
 __global__ void nbody_kernel(
     double* __restrict__ x,
