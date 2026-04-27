@@ -13,38 +13,64 @@ STEPS=1000
 MODE="bench"
 SAVE=1
 
+# Calculate limits for the job array
+MAX_INDEX=$((${#PARTICLES[@]} - 1))
+PARTICLES_STR="${PARTICLES[*]}" # Convert to space-separated string for SLURM
+
 echo "=========================================="
-echo " GPU Benchmark Matrix Launcher"
+echo " GPU Benchmark Matrix Launcher (ARRAY MODE)"
 echo "=========================================="
 
 # ===========================
 # CUDA STANDARD
 # ===========================
 if [ "$RUN_STANDARD" -eq 1 ]; then
-    echo "Launching CUDA Standard Benchmark Matrix"
-    echo "------------------------------------------"
-    for N in "${PARTICLES[@]}"; do
-        echo "Submitting CUDA Standard | N = $N"
-        sbatch scripts/run_cuda.sh $N $STEPS $MODE $SAVE
-        sleep 0.5
-    done
+    echo "Submitting CUDA Standard Job Array (Tasks: 0 to $MAX_INDEX)..."
+    sbatch <<EOF
+#!/bin/bash
+#SBATCH --job-name=gpu_std_arr
+#SBATCH --partition=gpu
+#SBATCH --nodes=1
+#SBATCH --gres=gpu:1
+#SBATCH --time=00:30:00
+#SBATCH --array=0-${MAX_INDEX}
+#SBATCH --output=logs/%A_%a_run_cuda_std.log
+#SBATCH --error=logs/errors/%A_%a_run_cuda_std.err
+
+# Rebuild array on compute node and extract N based on task ID
+ARR=($PARTICLES_STR)
+N=\${ARR[\$SLURM_ARRAY_TASK_ID]}
+
+echo "Running Array Task \$SLURM_ARRAY_TASK_ID | N=\$N"
+bash scripts/run_cuda.sh \$N $STEPS $MODE $SAVE
+EOF
 fi
 
 # ===========================
 # CUDA ULTRA
 # ===========================
 if [ "$RUN_ULTRA" -eq 1 ]; then
-    echo ""
-    echo "Launching CUDA Ultra Benchmark Matrix"
-    echo "------------------------------------------"
-    for N in "${PARTICLES[@]}"; do
-        echo "Submitting CUDA Ultra | N = $N"
-        sbatch scripts/run_cuda_ultra.sh $N $STEPS $MODE $SAVE
-        sleep 0.5
-    done
+    echo "Submitting CUDA Ultra Job Array (Tasks: 0 to $MAX_INDEX)..."
+    sbatch <<EOF
+#!/bin/bash
+#SBATCH --job-name=gpu_ult_arr
+#SBATCH --partition=gpu
+#SBATCH --nodes=1
+#SBATCH --gres=gpu:1
+#SBATCH --time=00:30:00
+#SBATCH --array=0-${MAX_INDEX}
+#SBATCH --output=logs/%A_%a_run_cuda_ultra.log
+#SBATCH --error=logs/errors/%A_%a_run_cuda_ultra.err
+
+# Rebuild array on compute node and extract N based on task ID
+ARR=($PARTICLES_STR)
+N=\${ARR[\$SLURM_ARRAY_TASK_ID]}
+
+echo "Running Array Task \$SLURM_ARRAY_TASK_ID | N=\$N"
+bash scripts/run_cuda_ultra.sh \$N $STEPS $MODE $SAVE
+EOF
 fi
 
 echo ""
-echo "All selected GPU benchmarking jobs submitted!"
-echo "Use 'squeue -u \$USER' to monitor progress."
-echo "Once complete, run 'make summary' to view the results."
+echo "Array jobs submitted successfully!"
+echo "Use 'squeue -u \$USER' to monitor."
