@@ -3,14 +3,14 @@
 #SBATCH --exclusive
 #SBATCH --job-name=r_h_u
 #SBATCH --partition=cpu
-#SBATCH --nodes=1
-#SBATCH --ntasks=2
+#SBATCH --nodes=16
+#SBATCH --ntasks=32
 #SBATCH --cpus-per-task=24
-#SBATCH --time=10:00:00
+#SBATCH --time=00:20:00
 #SBATCH --output=logs/%j_run_hybrid_ultra.log
 #SBATCH --error=logs/errors/%j_run_hybrid_ultra.err
 
-N=${1:-5000}
+N=${1:-100000}
 STEPS=${2:-1000}
 MODE=${3:-bench}
 SAVE=${4:-1}
@@ -44,7 +44,7 @@ echo "                           SIMULATION EXECUTION                           
 echo "=============================================================================="
 
 if [ -f "$BIN" ]; then
-    echo "Running: mpirun -np 2 $BIN $N $STEPS $MODE $SAVE"
+    echo "Running: mpirun -np 32 $BIN $N $STEPS $MODE $SAVE"
     time mpirun -np $SLURM_NTASKS --mca btl tcp,self,vader --map-by socket:PE=24 $BIN $N $STEPS $MODE $SAVE
 else
     echo "ERROR: Binary not found at $BIN"
