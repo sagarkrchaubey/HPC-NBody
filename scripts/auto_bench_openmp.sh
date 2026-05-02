@@ -34,9 +34,25 @@ WEAK_PAIRS=(
     "48 34641"
 )
 
-# Array string logic for Data Scaling
+# ===========================
+# ARRAY LOGIC PREPARATION
+# ===========================
 MAX_DATA_INDEX=$((${#DATA_N[@]} - 1))
 DATA_STR="${DATA_N[*]}"
+
+MAX_STRONG_INDEX=$((${#STRONG_THREADS[@]} - 1))
+STRONG_STR="${STRONG_THREADS[*]}"
+
+# Deconstruct Weak Scaling Pairs into separate parallel arrays for easier SLURM handling
+WEAK_T=()
+WEAK_N=()
+for PAIR in "${WEAK_PAIRS[@]}"; do
+    WEAK_T+=($(echo $PAIR | awk '{print $1}'))
+    WEAK_N+=($(echo $PAIR | awk '{print $2}'))
+done
+MAX_WEAK_INDEX=$((${#WEAK_T[@]} - 1))
+WEAK_T_STR="${WEAK_T[*]}"
+WEAK_N_STR="${WEAK_N[*]}"
 
 # Determine which codes to run
 TARGETS=()
@@ -44,11 +60,11 @@ if [ "$RUN_STANDARD" -eq 1 ]; then TARGETS+=("std"); fi
 if [ "$RUN_ULTRA" -eq 1 ]; then TARGETS+=("ultra"); fi
 
 echo "========================================================="
-echo " Launching Master OpenMP Benchmarking Matrix"
+echo " Launching Master OpenMP Benchmarking Matrix (Array Mode)"
 echo "========================================================="
 
 for TARGET in "${TARGETS[@]}"; do
-    
+
     if [ "$TARGET" == "std" ]; then
         SCRIPT="scripts/run_openmp.sh"
         PREFIX="std"
@@ -60,7 +76,7 @@ for TARGET in "${TARGETS[@]}"; do
     fi
 
     # ---------------------------------------------------------
-    # 1. DATA SCALING (Using SLURM Job Array)
+    # 1. DATA SCALING (Array Mode)
     # ---------------------------------------------------------
     echo "  [1/3] Submitting Data Scaling Array (Tasks: 0 to $MAX_DATA_INDEX)..."
     sbatch <<EOF >/dev/null
@@ -70,7 +86,7 @@ for TARGET in "${TARGETS[@]}"; do
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
-#SBATCH --time=00:30:00
+#SBATCH --time=02:30:00
 #SBATCH --exclusive
 #SBATCH --array=0-${MAX_DATA_INDEX}
 #SBATCH --output=logs/%A_%a_run_openmp_${PREFIX}_data.log
@@ -85,58 +101,72 @@ EOF
     sleep 0.5
 
     # ---------------------------------------------------------
-    # 2. STRONG SCALING (Dynamic Here-Doc Injection)
+    # 2. STRONG SCALING (Array Mode)
     # ---------------------------------------------------------
-    echo "  [2/3] Submitting Strong Scaling Set (Fixed N=$STRONG_N)..."
-    for T in "${STRONG_THREADS[@]}"; do
-        sbatch <<EOF >/dev/null
+    echo "  [2/3] Submitting Strong Scaling Array (Tasks: 0 to $MAX_STRONG_INDEX)..."
+    sbatch <<EOF >/dev/null
 #!/bin/bash
-#SBATCH --job-name=omp_${PREFIX}_str_${T}t
+#SBATCH --job-name=omp_${PREFIX}_str
 #SBATCH --partition=cpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=$T
-#SBATCH --time=00:30:00
+#SBATCH --cpus-per-task=48
+#SBATCH --time=02:30:00
 #SBATCH --exclusive
-#SBATCH --output=logs/%j_run_openmp_${PREFIX}_strong_${T}t.log
-#SBATCH --error=logs/errors/%j_run_openmp_${PREFIX}_strong_${T}t.err
+#SBATCH --array=0-${MAX_STRONG_INDEX}
+#SBATCH --output=logs/%A_%a_run_openmp_${PREFIX}_strong.log
+#SBATCH --error=logs/errors/%A_%a_run_openmp_${PREFIX}_strong.err
 
-echo "Running Strong Scaling: $T Threads | N=$STRONG_N"
+ARR=($STRONG_STR)
+T=\${ARR[\$SLURM_ARRAY_TASK_ID]}
+
+echo "Running Strong Scaling Task \$SLURM_ARRAY_TASK_ID: \$T Threads | N=$STRONG_N"
+
+# Override thread count for the specific array task securely 
+export OMP_NUM_THREADS=\$T
+export SLURM_CPUS_PER_TASK=\$T
+
 bash $SCRIPT $STRONG_N $STEPS $MODE $SAVE
 EOF
-        sleep 0.2
-    done
+    sleep 0.5
 
     # ---------------------------------------------------------
-    # 3. WEAK SCALING (Dynamic Here-Doc Injection)
+    # 3. WEAK SCALING (Array Mode)
     # ---------------------------------------------------------
-    echo "  [3/3] Submitting Weak Scaling Set..."
-    for PAIR in "${WEAK_PAIRS[@]}"; do
-        T=$(echo \$PAIR | awk '{print \$1}')
-        N=$(echo \$PAIR | awk '{print \$2}')
-        
-        sbatch <<EOF >/dev/null
+    echo "  [3/3] Submitting Weak Scaling Array (Tasks: 0 to $MAX_WEAK_INDEX)..."
+    sbatch <<EOF >/dev/null
 #!/bin/bash
-#SBATCH --job-name=omp_${PREFIX}_wk_${T}t
+#SBATCH --job-name=omp_${PREFIX}_wk
 #SBATCH --partition=cpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=$T
-#SBATCH --time=00:30:00
+#SBATCH --cpus-per-task=48
+#SBATCH --time=02:30:00
 #SBATCH --exclusive
-#SBATCH --output=logs/%j_run_openmp_${PREFIX}_weak_${T}t.log
-#SBATCH --error=logs/errors/%j_run_openmp_${PREFIX}_weak_${T}t.err
+#SBATCH --array=0-${MAX_WEAK_INDEX}
+#SBATCH --output=logs/%A_%a_run_openmp_${PREFIX}_weak.log
+#SBATCH --error=logs/errors/%A_%a_run_openmp_${PREFIX}_weak.err
 
-echo "Running Weak Scaling: $T Threads | N=\$N"
+ARR_T=($WEAK_T_STR)
+ARR_N=($WEAK_N_STR)
+
+T=\${ARR_T[\$SLURM_ARRAY_TASK_ID]}
+N=\${ARR_N[\$SLURM_ARRAY_TASK_ID]}
+
+echo "Running Weak Scaling Task \$SLURM_ARRAY_TASK_ID: \$T Threads | N=\$N"
+
+# Override thread count for the specific array task securely 
+export OMP_NUM_THREADS=\$T
+export SLURM_CPUS_PER_TASK=\$T
+
 bash $SCRIPT \$N $STEPS $MODE $SAVE
 EOF
-        sleep 0.2
-    done
+    sleep 0.5
 
 done
 
 echo ""
 echo "========================================================="
-echo " All OpenMP jobs successfully injected into the queue!"
-echo " Use 'squeue -u \$USER' to monitor."
+echo " All OpenMP Array Jobs successfully injected into the queue!"
+echo " Use 'squeue --me' to monitor."
 echo "========================================================="
